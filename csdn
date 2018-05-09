@@ -1,0 +1,162 @@
+当我还在acm的时候就很想写这个爬虫了
+
+后来学了python  学了点网页请求方式 然后就来写这个爬虫了 
+
+为了记录自己学习的过程写了这一系列博客
+
+首先讲讲我的思路 
+
+第一步当然是登陆  和 cookie处理问题了
+
+使用一个http.cookiejar库  自己创建一个CookieJar对象  把他当参数 构建一个opener对象
+
+安装这个opener为全局对象  这样在我们后面的urlopen过程中都会使用这个opener了 这种方法很好的解决了cookie的问题
+
+def login(self):
+		requ = urllib.request.Request(url = self.login_url , data = self.login_data , headers = self.headers)
+		cjar = http.cookiejar.CookieJar()#创建一个CookieJar对象
+		#使用HTTPCookieProcessor创建一个cookie处理器 并且用它当参数构建opener对象
+		opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cjar))
+		#把opener安装为全局
+		urllib.request.install_opener(opener)
+		file = opener.open(requ)
+		#with open("test.html" , "wb") as fhandler:
+		#	fhandler.write(file.read())
+我刚开始是准备在csdn上搜索  hdu + 题号 的方式然后爬csdn自带搜索引擎的结果来交题的
+
+先贴一个我从csdn上爬代码的关键部分代码吧  大概是这样的
+
+#这里直到while都是找到题解地址部分
+		#接下来的部分是在csdn上搜索这个问题的解
+		urlofquestion = "https://so.csdn.net/so/search/s.do?q=nyoj+%2B+"
+		value = ans
+		URLENcode = urllib.parse.urlencode({"value" : ans})
+		urlofquestion += URLENcode[6:]#因为vlaue= 的长度为6  所以用了这个切片
+		urlofquestion += "&t=blog&o=&s=&l="
+		#print("我们准备在这个页面搜索题解链接" + urlofquestion)
+		#拿到搜索页面的url地址了  有很多有用的url博客地址  我们只用一个  交题一个就够了 对吧
+		requ = urllib.request.Request(url = urlofquestion , headers = headers)
+		html = urllib.request.urlopen(requ).read()
+		coding = str(html)
+		pattern = '(<a href="https://blog.csdn.net/(.).*?("){1})'
+		pattern = re.compile(pattern)
+		ans_url_list = pattern.findall(coding)
+		while times < 5 and check(page) == False:
+			#print("我们准备在这个页面搜索题解链接" + str(ans_url_list[times][0]))
+			print(str(page) + "题已经尝试了" + str(times) + "次")
+			url_csdn = ans_url_list[times][0][9:len(ans_url_list[times][0]) - 1]
+			#print("我们在这个页面搜索题解" + url_csdn)
+			times += 1
+			try:
+				req = urllib.request.Request(url_csdn , headers = headers)
+				html_csdn = urllib.request.urlopen(req, timeout = 10)
+			except Exception as e:
+				continue
+				print("在打开csdn网站时碰到了问题：")
+				print(str(e))
+				
+			finally:
+				html_csdn = str(html_csdn.read())
+				pattern = '<pre class=[^\s]*>.*?</pre>'
+				pattern = re.compile(pattern,re.M | re.I)
+				list_coding = pattern.findall(html_csdn)
+				try:
+					list_coding = list_coding[0]
+					#list_coding = list_coding[17:]
+					list_coding = re.sub('<pre class=".*?">' , "" , list_coding)
+					list_coding = re.sub("<" , '<' , list_coding)
+					list_coding = re.sub(">" , '>' , list_coding)
+					list_coding = re.sub("&" , '&' , list_coding)
+					list_coding = re.sub("</pre>" , "" , list_coding)
+				except Exception as E:
+					print("Fire " + str(E))
+				#接下来的部分是我手动转换html编码的部分 真的太蠢了写的
+				#后来知道有直接转换编码这种操作
+大概就是这样  在csdn中搜索答案 然后利用爬虫抓到代码  然后提交 
+
+但是csdn自带搜索引擎的搜索效率还有很多很多人写代码不规范  比如 有些人会把真正的题解写在普通文字部分
+
+还有很多人  他们的代码是分块的  我可能没表达清楚  但是你肯定见过这种代码  把不同部分的代码分成好几个代码块  粘在一篇博客的不同位置  还有很多人 他们用java的博客板子写了c语言的代码  这让我很头疼 
+
+于是我放弃了这种爬取的方案  因为效率很低  而且 csdn后来的响应很慢  我在连续爬取了1000+题目代码答案的时候被封禁了ip地址   我尝试使用代理   然而代理不稳定   直到这里这中搜索方法已经耗尽了我的耐心 我甚至还写了一些  判断题目是否通过然后在尝试是用爬虫提交的部分
+
+再后来 我在想有没有什么办法能让我很快速的得到很干净的代码
+
+我发现一个网站   acm题解报告查询  只需要你输入  oj的名称和题目号码  就能自动找到题解了 爬代码部分的代码是这样写的
+
+我写这份代码的时候  第一次其实我根本不会用正则表达式   但是我感觉不就是提取指定字符串嘛  指针完全能解决啊 
+
+我甚至写了一个伪指针提取url  和伪指针提取 题解代码的函数 23333 当然后来改成了正则表达式  但是在使用正则表达式的过程中真的是千辛万苦  尤其是()  括号 有时候要在表达式整体加一个括号 情况才会往你想的方向发展 我真的不懂  这一点在让我编译正则之后用findall函数的时候疯狂报错  正则虐我千百遍 
+
+def Get_code_by_page(self , page):
+		url_of_list = "http://www.acmsearch.com/article/?ArticleListSearch%5BFoj%5D=hdoj&ArticleListSearch%5BFproblem_id%5D="
+		url_of_coding = "http://www.acmsearch.com"
+		url_of_list += str(page)
+	#	print(url_of_list)
+		#print("查询链接为" + url_of_list)
+		requ = urllib.request.Request(url = url_of_list , headers = self.headers)
+		html = urllib.request.urlopen(requ).read()
+		pattern = '"/article/show/\d.*?"'
+		string = str(html)
+		result = re.search(pattern , string)
+		#print(result)
+		#print("地址链接为" + url_of_coding)
+		try:
+			pos = result.span()
+			url_of_coding += string[pos[0] + 1 : pos[1] - 1]
+			#print(url_of_coding)
+			requ = urllib.request.Request(url = url_of_coding , headers = self.headers)
+			html = urllib.request.urlopen(requ).read()
+		except Exception as e:
+			print("错误发生在爬取acmcoding链接部分")
+			print(str(e))
+		
+		
+		pattern = 'important;">.*</textarea>'
+		string = str(html)
+		result = re.search(pattern , string)
+	#	print("地址链接为" + url_of_coding)
+		try:
+			pos = result.span()
+			coding = string[pos[0] + 12: pos[1] - 11]
+			self.coding = coding
+			#print(coding)
+		except Exception as e:
+			print("错误发生在爬取代码部分")
+			print(str(e))
+		html = self.coding
+		h = HTMLParser()
+		html = h.unescape(html)
+
+哈哈哈  想到一个好玩的事情  跟你们分享一下  就是我刚开始不知道url编码转码  还有编码格式这些东西
+
+然后当我发现我扒下来的代码里面有很多\n \t 这种非打印字符的时候  我居然用了这种方法
+
+这种东西转码就好了 但是为了记录学习过程  我没有改这个
+
+while k < len(html) :
+			if html[k] == "\\" and html[k + 1] == "\\" and html[k + 2] == "n":
+				stringofcoding += "\\n"
+				k += 3
+			elif html[k] == "\\" and html[k + 1] == "n":
+				stringofcoding += "\n"
+				k += 2
+			elif html[k] == "\\" and html[k + 1] == "t":
+				stringofcoding += "    "
+				k += 2
+			elif html[k] == "\\" and html[k + 1] == "r":
+				stringofcoding += ""
+				k += 2	
+			elif html[k] == "\\" and html[k + 1] == "'":
+				stringofcoding += "'"
+				k += 2	
+			else:
+				stringofcoding += html[k]
+				k += 1
+		self.coding = stringofcoding
+		#with open("hdu" + str(page) + ".txt" , "w") as fhandler:
+		#	fhandler.write(stringofcoding)
+		return 
+没错  我用伪指针来解决了这个问题  现在回头想想好蠢啊我的天那
+
+全部代码在这里 https://github.com/Tdyh/musical-fiesta/tree/master#musical-fiesta
